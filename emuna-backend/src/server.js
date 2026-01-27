@@ -16,3 +16,18 @@ connectDB();
 app.use(helmet());
 app.use(cors());
 app.use(morgan("dev"));
+app.use(express.json());
+
+// 4. Rutas
+
+app.get("/", (req, res) => {
+  res.json("🌿API DE EMUNA Funcionando correctamente");
+});
+
+// 5. Configuración del puerto
+
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`🚀Servidor encendido en http://localhost:${PORT}`);
+});
