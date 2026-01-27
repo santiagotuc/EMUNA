@@ -11,3 +11,8 @@ const app = express();
 
 // 2. Conectar a MongoDb Atlas
 connectDB();
+
+// 3. Middlewares
+app.use(helmet());
+app.use(cors());
+app.use(morgan("dev"));
