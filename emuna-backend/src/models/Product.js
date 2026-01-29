@@ -22,11 +22,11 @@ const productSchema = new mongoose.Schema(
     category: {
       type: String,
       required: true,
-      enum: ["plantas", "artesanias"],
+      enum: ["Plantas", "Artesanías"],
     },
 
     stock: {
-      type: String,
+      type: Number,
       required: true,
       default: 0,
     },
