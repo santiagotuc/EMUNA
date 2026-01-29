@@ -26,12 +26,12 @@ const productSchema = new mongoose.Schema(
     },
 
     stock: {
-      type: Number,
+      type: String,
       required: true,
       default: 0,
     },
 
-    imageUrl: {
+    imageURL: {
       type: String,
       default: "https://via.placeholder.com/150",
     },
