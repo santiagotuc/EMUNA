@@ -2,7 +2,6 @@ const Product = require("../models/Product");
 
 // @desc Obtener todos los productos
 // @route GET /api/products
-
 exports.getProducts = async (req, res) => {
   try {
     const products = await Product.find();
@@ -12,9 +11,8 @@ exports.getProducts = async (req, res) => {
   }
 };
 
-// @desc Crear un nuevo producto (Planta o artesania)
+// @desc Crear un nuevo producto (Planta o artesanía)
 // @route POST /api/products
-
 exports.createProduct = async (req, res) => {
   const { name, description, price, category, stock, imageURL } = req.body;
 
@@ -35,27 +33,42 @@ exports.createProduct = async (req, res) => {
   }
 };
 
-// @desc  Actualizar un producto
+// @desc Actualizar un producto
 // @route PUT /api/products/:id
-
 exports.updateProduct = async (req, res) => {
   try {
+    // CORRECCIÓN: Usamos req.params.id (con 's')
     const updatedProduct = await Product.findByIdAndUpdate(
-      req.param.id,
+      req.params.id,
       req.body,
-      { new: true }, //aqui devuelve el producto ya modificado
+      { new: true, runValidators: true }, // runValidators asegura que siga las reglas del modelo
     );
+
+    if (!updatedProduct) {
+      return res
+        .status(404)
+        .json({ message: "Producto no encontrado para actualizar" });
+    }
+
     res.json(updatedProduct);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 };
 
-// @desc    Eliminar un producto
-// @route   DELETE /api/products/:id
+// @desc Eliminar un producto
+// @route DELETE /api/products/:id
 exports.deleteProduct = async (req, res) => {
   try {
-    const deletedProduct = await Product.findByIdAndDelete(req.param.id);
+    // CORRECCIÓN: Validamos que el producto exista antes de decir que se borró
+    const deletedProduct = await Product.findByIdAndDelete(req.params.id);
+
+    if (!deletedProduct) {
+      return res
+        .status(404)
+        .json({ message: "Producto no encontrado para eliminar" });
+    }
+
     res.json({ message: "Producto eliminado correctamente" });
   } catch (error) {
     res.status(500).json({ message: error.message });

@@ -33,7 +33,7 @@ const productSchema = new mongoose.Schema(
 
     imageURL: {
       type: String,
-      default: "https://via.placeholder.com/150",
+      default: "https://via.placeholder.com/300", // Una imagen por defecto si no ponemos nada
     },
   },
   { timestamps: true },
