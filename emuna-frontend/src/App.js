@@ -3,6 +3,8 @@ import React, { useEffect, useState } from "react";
 function App() {
   const [productos, setProductos] = useState([]);
   const [mostrarModal, setMostrarModal] = useState(false);
+  const [busqueda, setBusqueda] = useState("");
+  const [filtroCategoria, setFiltroCategoria] = useState("Todos");
 
   // ESTADO PARA EL FORMULARIO (Agregado imageURL)
   const [nuevoProducto, setNuevoProducto] = useState({
@@ -123,6 +125,27 @@ function App() {
     }
   };
 
+  // Filtramos los productos según el nombre o la categoría
+
+  const productosFiltrados = productos.filter((producto) => {
+    const coincideBusqueda = producto.name
+      .toLowerCase()
+      .includes(busqueda.toLowerCase());
+    const coincideCategoria =
+      filtroCategoria === "Todos" || producto.category === filtroCategoria;
+
+    return coincideBusqueda && coincideCategoria;
+  });
+
+  //Resumen de productos
+
+  const totalProductos = productos.length;
+  const stockCritico = productos.filter((p) => p.stock < 5).length;
+  const valorInventario = productos.reduce(
+    (acc, p) => acc + p.price * p.stock,
+    0,
+  );
+
   return (
     <div className="min-h-screen bg-emerald-50 p-10 font-sans relative">
       <div className="max-w-6xl mx-auto">
@@ -142,9 +165,94 @@ function App() {
             + Nuevo Producto
           </button>
         </header>
+        {/* BARRA DE BÚSQUEDA */}
+
+        {/* DASHBOARD DE RESUMEN */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-emerald-100 flex flex-col items-center">
+            <span className="text-emerald-500 text-sm font-bold uppercase tracking-wider">
+              Total Productos
+            </span>
+            <span className="text-4xl font-black text-emerald-900">
+              {totalProductos}
+            </span>
+          </div>
+
+          <div
+            className={`p-6 rounded-3xl shadow-sm border flex flex-col items-center ${stockCritico > 0 ? "bg-orange-50 border-orange-200" : "bg-white border-emerald-100"}`}
+          >
+            <span
+              className={`${stockCritico > 0 ? "text-orange-600" : "text-emerald-500"} text-sm font-bold uppercase tracking-wider`}
+            >
+              Stock Crítico
+            </span>
+            <span
+              className={`text-4xl font-black ${stockCritico > 0 ? "text-orange-700" : "text-emerald-900"}`}
+            >
+              {stockCritico}
+            </span>
+          </div>
+
+          <div className="bg-emerald-600 p-6 rounded-3xl shadow-lg flex flex-col items-center text-white">
+            <span className="text-emerald-100 text-sm font-bold uppercase tracking-wider">
+              Valor Inventario
+            </span>
+            <span className="text-4xl font-black">
+              ${valorInventario.toLocaleString()}
+            </span>
+          </div>
+        </div>
+
+        {/* BOTONES DE FILTRO */}
+        <div className="flex justify-center gap-4 mb-6">
+          {["Todos", "Plantas", "Artesanías"].map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setFiltroCategoria(cat)}
+              className={`px-6 py-2 rounded-full font-bold transition-all shadow-md ${
+                filtroCategoria === cat
+                  ? "bg-emerald-600 text-white scale-105"
+                  : "bg-white text-emerald-700 hover:bg-emerald-50"
+              }`}
+            >
+              {cat === "Todos"
+                ? "🌍 Todos"
+                : cat === "Plantas"
+                  ? "🌵 Plantas"
+                  : "🏺 Artesanías"}
+            </button>
+          ))}
+        </div>
+        <div className="mb-8">
+          <div className="relative max-w-md mx-auto">
+            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-emerald-500">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+            </span>
+            <input
+              type="text"
+              placeholder="Buscar planta o artesanía..."
+              className="w-full pl-10 pr-4 py-3 border-2 border-emerald-100 rounded-2xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all shadow-sm"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+            />
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {productos.map((producto) => (
+          {productosFiltrados.map((producto) => (
             <div
               key={producto._id}
               className="bg-white rounded-3xl shadow-xl overflow-hidden border border-emerald-100 hover:scale-105 transition-transform flex flex-col"
