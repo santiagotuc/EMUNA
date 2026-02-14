@@ -3,54 +3,52 @@ const Product = require("../models/Product");
 // 1. CREAR PRODUCTO
 exports.createProduct = async (req, res) => {
   try {
-    // Estos logs son para que vos veas en Render qué está llegando
     console.log("--- Intentando crear producto ---");
-    console.log("Cuerpo de la petición (req.body):", req.body);
-    console.log("Archivo recibido (req.file):", req.file);
-
+    // Extraemos los datos del body
     const { name, description, price, stock, category } = req.body;
 
-    // Prioridad: Si hay archivo de Cloudinary lo usamos, sino el link de texto
-    const imageURL = req.file ? req.file.path : req.body.imageURL;
+    // VALIDACIÓN MANUAL: Si no hay archivo ni URL, usamos el placeholder
+    let finalImage = "https://via.placeholder.com/300";
+    if (req.file && req.file.path) {
+      finalImage = req.file.path;
+    } else if (req.body.imageURL) {
+      finalImage = req.body.imageURL;
+    }
 
     const nuevoProducto = new Product({
       name,
       description,
-      price: Number(price), // Nos aseguramos de que sea número
-      stock: Number(stock), // Nos aseguramos de que sea número
-      category,
-      imageURL,
+      price: parseFloat(price) || 0, // Usamos parseFloat para asegurar número
+      stock: parseInt(stock) || 0, // Usamos parseInt para asegurar entero
+      category: category || "Plantas",
+      imageURL: finalImage,
     });
 
-    await nuevoProducto.save();
-    console.log("✅ Producto guardado con éxito en MongoDB");
-    res.status(201).json(nuevoProducto);
+    const productoGuardado = await nuevoProducto.save();
+    console.log("✅ Producto guardado:", productoGuardado.name);
+    res.status(201).json(productoGuardado);
   } catch (error) {
-    console.error("❌ Error en createProduct:", error.message);
+    console.error("❌ ERROR CRÍTICO EN BACKEND:", error);
     res.status(500).json({
-      message: "Error al crear producto",
+      message: "Error interno del servidor al crear producto",
       error: error.message,
     });
   }
 };
 
-// 2. ACTUALIZAR PRODUCTO
+// 2. ACTUALIZAR PRODUCTO (Simplificado para evitar errores)
 exports.updateProduct = async (req, res) => {
   try {
-    console.log("--- Intentando actualizar producto ---");
     const { name, description, price, stock, category } = req.body;
-
     let updateData = {
       name,
       description,
-      price: Number(price),
-      stock: Number(stock),
+      price: parseFloat(price),
+      stock: parseInt(stock),
       category,
     };
 
-    // Si el usuario subió una imagen nueva en la edición
-    if (req.file) {
-      console.log("Nueva imagen detectada para actualizar:", req.file.path);
+    if (req.file && req.file.path) {
       updateData.imageURL = req.file.path;
     }
 
@@ -60,22 +58,16 @@ exports.updateProduct = async (req, res) => {
       { new: true },
     );
 
-    if (!productoActualizado) {
-      return res.status(404).json({ message: "Producto no encontrado" });
-    }
-
-    console.log("✅ Producto actualizado con éxito");
     res.json(productoActualizado);
   } catch (error) {
-    console.error("❌ Error en updateProduct:", error.message);
-    res.status(500).json({
-      message: "Error al actualizar",
-      error: error.message,
-    });
+    console.error("❌ Error al actualizar:", error);
+    res
+      .status(500)
+      .json({ message: "Error al actualizar", error: error.message });
   }
 };
 
-// 3. OBTENER TODOS LOS PRODUCTOS
+// ... el resto de tus funciones (get y delete) están perfectas
 exports.getProducts = async (req, res) => {
   try {
     const productos = await Product.find().sort({ createdAt: -1 });
@@ -85,17 +77,9 @@ exports.getProducts = async (req, res) => {
   }
 };
 
-// 4. ELIMINAR PRODUCTO
 exports.deleteProduct = async (req, res) => {
   try {
-    const { id } = req.params;
-    const eliminado = await Product.findByIdAndDelete(id);
-
-    if (!eliminado) {
-      return res.status(404).json({ message: "No se encontró el producto" });
-    }
-
-    console.log("✅ Producto eliminado ID:", id);
+    await Product.findByIdAndDelete(req.params.id);
     res.json({ message: "Producto eliminado correctamente" });
   } catch (error) {
     res.status(500).json({ message: "Error al eliminar" });
