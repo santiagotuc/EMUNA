@@ -2,8 +2,8 @@ const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-// CLAVE SECRETA (En un proyecto real, esto va en el archivo .env)
-const JWT_SECRET = "palabra_super_secreta_de_emuna";
+// CLAVE SECRETA
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // @desc Registrar un nuevo usuario (Solo lo usaremos una vez para crear al admin)
 // @route POST /api/auth/register
