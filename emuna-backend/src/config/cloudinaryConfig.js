@@ -12,8 +12,7 @@ const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
     folder: "emuna_productos",
-    format: async (req, file) => "jpg", // forzamos formato para evitar errores de extensión
-    public_id: (req, file) => file.fieldname + "-" + Date.now(),
+    allowed_formats: ["jpg", "png", "jpeg"],
   },
 });
 
