@@ -5,23 +5,18 @@ exports.createProduct = async (req, res) => {
   try {
     console.log("--- Petición recibida en Backend ---");
 
-    // Verificamos si el body llegó vacío después de pasar por Multer
     if (!req.body || Object.keys(req.body).length === 0) {
       console.log("⚠️ Advertencia: req.body llegó vacío al controlador");
-      // Si esto sucede, Multer no pudo parsear el formulario
     }
 
     const { name, description, price, stock, category } = req.body;
 
-    // Si aún así el nombre no está, devolvemos error 400 (Bad Request)
     if (!name) {
       return res.status(400).json({
-        message:
-          "No se recibieron los datos del producto (nombre faltante). Revisa la conexión.",
+        message: "No se recibieron los datos del producto (nombre faltante).",
       });
     }
 
-    // Procesar Imagen: Prioridad Multer (req.file) > imageURL manual > Placeholder
     let finalImage = "https://via.placeholder.com/300";
     if (req.file && req.file.path) {
       finalImage = req.file.path;
@@ -42,14 +37,16 @@ exports.createProduct = async (req, res) => {
     console.log("✅ Producto guardado exitosamente:", productoGuardado.name);
     res.status(201).json(productoGuardado);
   } catch (error) {
-    console.error("❌ ERROR EN BACKEND:", error.message);
+    // --- ESTE ES EL CAMBIO CLAVE ---
+    // Imprimimos el error completo para cazar el fallo de Cloudinary
+    console.error("❌ ERROR DETALLADO:", error);
+
     res.status(500).json({
       message: "Error interno en el servidor",
       error: error.message,
     });
   }
 };
-
 // 2. ACTUALIZAR PRODUCTO
 exports.updateProduct = async (req, res) => {
   try {
