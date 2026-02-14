@@ -6,6 +6,7 @@ const helmet = require("helmet");
 const morgan = require("morgan");
 const connectDB = require("./config/db");
 const productRoutes = require("./routes/productRoutes");
+const authRoutes = require("./routes/authRoutes");
 
 // 1. Inicializar la aplicacion
 const app = express();
@@ -25,11 +26,8 @@ app.get("/", (req, res) => {
   res.json("🌿API DE EMUNA Funcionando correctamente");
 });
 app.use("/api/products", productRoutes);
-
+app.use("/api/auth", authRoutes);
 // 5. Configuración del puerto
 
 const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, () => {
-  console.log(`🚀Servidor encendido en http://localhost:${PORT}`);
-});
+app.listen(PORT, () => console.log(`🚀 Servidor en puerto ${PORT}`));
