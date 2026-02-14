@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 
-// --- CONFIGURACIÓN DE URL DINÁMICA ---
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
 function App() {
@@ -8,28 +7,23 @@ function App() {
   const [mostrarModal, setMostrarModal] = useState(false);
   const [busqueda, setBusqueda] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState("Todos");
-
-  // --- SEGURIDAD ---
   const [token, setToken] = useState(localStorage.getItem("token") || null);
   const [mostrarLogin, setMostrarLogin] = useState(false);
   const [credenciales, setCredenciales] = useState({
     username: "",
     password: "",
   });
-
   const [nuevoProducto, setNuevoProducto] = useState({
     name: "",
     description: "",
     price: "",
     stock: "",
     category: "Plantas",
-    imageURL: "", // Se mantiene para compatibilidad o links externos
-    imageFile: null, // Nuevo: para el archivo físico
+    imageURL: "",
+    imageFile: null,
   });
-
   const [editandoId, setEditandoId] = useState(null);
 
-  // 1. OBTENER PRODUCTOS (PÚBLICO)
   useEffect(() => {
     const obtenerDatos = async () => {
       try {
@@ -43,7 +37,6 @@ function App() {
     obtenerDatos();
   }, []);
 
-  // 2. LÓGICA DE LOGIN
   const manejarLogin = async (e) => {
     e.preventDefault();
     try {
@@ -53,7 +46,6 @@ function App() {
         body: JSON.stringify(credenciales),
       });
       const data = await response.json();
-
       if (response.ok) {
         setToken(data.token);
         localStorage.setItem("token", data.token);
@@ -74,28 +66,8 @@ function App() {
     alert("Sesión cerrada.");
   };
 
-  // 3. FILTRADO Y MÉTRICAS
-  const productosFiltrados = productos.filter((producto) => {
-    const coincideBusqueda = producto.name
-      .toLowerCase()
-      .includes(busqueda.toLowerCase());
-    const coincideCategoria =
-      filtroCategoria === "Todos" || producto.category === filtroCategoria;
-    return coincideBusqueda && coincideCategoria;
-  });
-
-  const totalProductos = productos.length;
-  const stockCritico = productos.filter((p) => p.stock < 5).length;
-  const valorInventario = productos.reduce(
-    (acc, p) => acc + p.price * p.stock,
-    0,
-  );
-
-  // 4. FUNCIONES CRUD (CON TOKEN Y FORMDATA)
   const manejarEnvio = async (e) => {
     e.preventDefault();
-
-    // --- IMPORTANTE: Usamos FormData para subir imágenes ---
     const formData = new FormData();
     formData.append("name", nuevoProducto.name);
     formData.append("description", nuevoProducto.description);
@@ -103,7 +75,7 @@ function App() {
     formData.append("stock", nuevoProducto.stock);
     formData.append("category", nuevoProducto.category);
 
-    // Si hay un archivo seleccionado, se añade como 'image'
+    // IMPORTANTE: 'image' debe coincidir con uploadCloud.single("image") del backend
     if (nuevoProducto.imageFile) {
       formData.append("image", nuevoProducto.imageFile);
     } else {
@@ -114,13 +86,9 @@ function App() {
       const url = editandoId
         ? `${API_URL}/api/products/${editandoId}`
         : `${API_URL}/api/products`;
-
       const response = await fetch(url, {
         method: editandoId ? "PUT" : "POST",
-        headers: {
-          "x-auth-token": token,
-          // NOTA: Aquí NO se pone "Content-Type", el navegador lo pone solo al ver que es FormData
-        },
+        headers: { "x-auth-token": token }, // NUNCA poner Content-Type aquí con FormData
         body: formData,
       });
 
@@ -131,10 +99,11 @@ function App() {
         else setProductos([...productos, data]);
         cerrarModal();
       } else {
-        alert("Error al guardar: " + data.message);
+        alert("Error del servidor: " + (data.message || "No se pudo guardar"));
       }
     } catch (error) {
-      console.error(error);
+      console.error("Error en la petición:", error);
+      alert("Error de conexión con el servidor");
     }
   };
 
@@ -172,6 +141,15 @@ function App() {
     setMostrarModal(true);
   };
 
+  // El resto del return (HTML) se mantiene igual que tu código original
+  // Solo asegúrate de copiar esta parte del input de archivo en tu modal:
+  /* <input
+      type="file"
+      accept="image/*"
+      onChange={(e) => setNuevoProducto({ ...nuevoProducto, imageFile: e.target.files[0] })}
+    />
+  */
+
   return (
     <div className="min-h-screen bg-emerald-50 p-10 font-sans">
       <div className="max-w-6xl mx-auto">
@@ -182,7 +160,6 @@ function App() {
             </h1>
             <p className="text-emerald-700">Inventario Profesional</p>
           </div>
-
           <div className="flex gap-2">
             {!token ? (
               <button
@@ -210,7 +187,6 @@ function App() {
           </div>
         </header>
 
-        {/* DASHBOARD - SOLO VISIBLE PARA ADMIN */}
         {token && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <div className="bg-white p-6 rounded-3xl shadow-sm border border-emerald-100 flex flex-col items-center">
@@ -238,7 +214,6 @@ function App() {
           </div>
         )}
 
-        {/* BÚSQUEDA Y FILTROS */}
         <div className="flex flex-col items-center mb-8 gap-4">
           <div className="flex gap-4">
             {["Todos", "Plantas", "Artesanías"].map((cat) => (
@@ -260,68 +235,73 @@ function App() {
           />
         </div>
 
-        {/* GRILLA DE PRODUCTOS */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {productosFiltrados.map((producto) => (
-            <div
-              key={producto._id}
-              className="bg-white rounded-3xl shadow-xl overflow-hidden flex flex-col border border-emerald-50"
-            >
-              <div className="h-48 bg-emerald-200 flex items-center justify-center overflow-hidden">
-                {producto.imageURL ? (
-                  <img
-                    src={producto.imageURL}
-                    alt={producto.name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="text-6xl">
-                    {producto.category === "Plantas" ? "🌵" : "🏺"}
-                  </span>
-                )}
-              </div>
-              <div className="p-6 flex-grow">
-                <h2 className="text-2xl font-bold text-gray-800 capitalize">
-                  {producto.name}
-                </h2>
-                <p className="text-gray-500 text-sm mb-4">
-                  {producto.description}
-                </p>
-                <div className="flex justify-between items-center pt-4 border-t border-gray-100">
-                  <div className="flex flex-col">
-                    <span className="text-3xl font-black text-emerald-600">
-                      ${producto.price}
+          {productos
+            .filter(
+              (p) =>
+                (filtroCategoria === "Todos" ||
+                  p.category === filtroCategoria) &&
+                p.name.toLowerCase().includes(busqueda.toLowerCase()),
+            )
+            .map((producto) => (
+              <div
+                key={producto._id}
+                className="bg-white rounded-3xl shadow-xl overflow-hidden flex flex-col border border-emerald-50"
+              >
+                <div className="h-48 bg-emerald-200 flex items-center justify-center overflow-hidden">
+                  {producto.imageURL ? (
+                    <img
+                      src={producto.imageURL}
+                      alt={producto.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-6xl">
+                      {producto.category === "Plantas" ? "🌵" : "🏺"}
                     </span>
-                    {token && (
-                      <span className="text-xs font-bold text-gray-400">
-                        Stock: {producto.stock}
-                      </span>
-                    )}
-                  </div>
-                  {token && (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => prepararEdicion(producto)}
-                        className="p-3 bg-blue-50 text-blue-500 rounded-full hover:bg-blue-100 transition"
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        onClick={() => eliminarProducto(producto._id)}
-                        className="p-3 bg-red-50 text-red-500 rounded-full hover:bg-red-100 transition"
-                      >
-                        🗑️
-                      </button>
-                    </div>
                   )}
                 </div>
+                <div className="p-6 flex-grow">
+                  <h2 className="text-2xl font-bold text-gray-800 capitalize">
+                    {producto.name}
+                  </h2>
+                  <p className="text-gray-500 text-sm mb-4">
+                    {producto.description}
+                  </p>
+                  <div className="flex justify-between items-center pt-4 border-t border-gray-100">
+                    <div className="flex flex-col">
+                      <span className="text-3xl font-black text-emerald-600">
+                        ${producto.price}
+                      </span>
+                      {token && (
+                        <span className="text-xs font-bold text-gray-400">
+                          Stock: {producto.stock}
+                        </span>
+                      )}
+                    </div>
+                    {token && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => prepararEdicion(producto)}
+                          className="p-3 bg-blue-50 text-blue-500 rounded-full hover:bg-blue-100 transition"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={() => eliminarProducto(producto._id)}
+                          className="p-3 bg-red-50 text-red-500 rounded-full hover:bg-red-100 transition"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
         </div>
       </div>
 
-      {/* MODAL LOGIN */}
       {mostrarLogin && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
           <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
@@ -369,7 +349,6 @@ function App() {
         </div>
       )}
 
-      {/* MODAL INVENTARIO (CON BOTÓN DE SUBIDA DE IMAGEN) */}
       {mostrarModal && token && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
@@ -399,8 +378,6 @@ function App() {
                   })
                 }
               />
-
-              {/* --- NUEVO INPUT DE ARCHIVO --- */}
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-bold text-emerald-700 ml-1">
                   Imagen del Producto
@@ -417,7 +394,6 @@ function App() {
                   }
                 />
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <input
                   type="number"

@@ -1,28 +1,71 @@
-const express = require("express");
-const router = express.Router();
-const productController = require("../controllers/productController");
-const auth = require("../middleware/authMiddleware");
-const uploadCloud = require("../config/cloudinaryConfig"); // Importamos Multer
+const Product = require("../models/Product");
 
-// El GET sigue igual
-router.get("/", productController.getProducts);
+// Crear producto
+exports.createProduct = async (req, res) => {
+  try {
+    const { name, description, price, stock, category } = req.body;
 
-// El POST ahora acepta un archivo llamado 'image'
-router.post(
-  "/",
-  auth,
-  uploadCloud.single("image"),
-  productController.createProduct,
-);
+    // Si req.file existe, usamos la URL de Cloudinary. Si no, usamos imageURL de texto.
+    const imageURL = req.file ? req.file.path : req.body.imageURL;
 
-// El PUT también para cuando quiera cambiar la foto
-router.put(
-  "/:id",
-  auth,
-  uploadCloud.single("image"),
-  productController.updateProduct,
-);
+    const nuevoProducto = new Product({
+      name,
+      description,
+      price,
+      stock,
+      category,
+      imageURL,
+    });
 
-router.delete("/:id", auth, productController.deleteProduct);
+    await nuevoProducto.save();
+    res.status(201).json(nuevoProducto);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error al crear producto", error: error.message });
+  }
+};
 
-module.exports = router;
+// Actualizar producto
+exports.updateProduct = async (req, res) => {
+  try {
+    const { name, description, price, stock, category } = req.body;
+    let updateData = { name, description, price, stock, category };
+
+    // Si se subió una imagen nueva, actualizamos el link
+    if (req.file) {
+      updateData.imageURL = req.file.path;
+    }
+
+    const productoActualizado = await Product.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true },
+    );
+    res.json(productoActualizado);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error al actualizar", error: error.message });
+  }
+};
+
+// Obtener productos
+exports.getProducts = async (req, res) => {
+  try {
+    const productos = await Product.find().sort({ createdAt: -1 });
+    res.json(productos);
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener productos" });
+  }
+};
+
+// Eliminar producto
+exports.deleteProduct = async (req, res) => {
+  try {
+    await Product.findByIdAndDelete(req.params.id);
+    res.json({ message: "Producto eliminado" });
+  } catch (error) {
+    res.status(500).json({ message: "Error al eliminar" });
+  }
+};
