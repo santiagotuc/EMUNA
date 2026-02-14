@@ -3,26 +3,30 @@ const Product = require("../models/Product");
 // 1. CREAR PRODUCTO
 exports.createProduct = async (req, res) => {
   try {
-    console.log("--- Petición de creación recibida ---");
+    console.log("--- Petición recibida en Backend ---");
 
-    // Si req.body es undefined, usamos un objeto vacío para evitar el crash
-    const data = req.body || {};
-    const { name, description, price, stock, category } = data;
+    // Verificamos si el body llegó vacío después de pasar por Multer
+    if (!req.body || Object.keys(req.body).length === 0) {
+      console.log("⚠️ Advertencia: req.body llegó vacío al controlador");
+      // Si esto sucede, Multer no pudo parsear el formulario
+    }
 
-    // Validación de seguridad para evitar el error del log anterior
+    const { name, description, price, stock, category } = req.body;
+
+    // Si aún así el nombre no está, devolvemos error 400 (Bad Request)
     if (!name) {
-      console.log("⚠️ Error: El nombre no llegó en el body");
-      return res
-        .status(400)
-        .json({ message: "El nombre del producto es obligatorio." });
+      return res.status(400).json({
+        message:
+          "No se recibieron los datos del producto (nombre faltante). Revisa la conexión.",
+      });
     }
 
     // Procesar Imagen: Prioridad Multer (req.file) > imageURL manual > Placeholder
     let finalImage = "https://via.placeholder.com/300";
     if (req.file && req.file.path) {
       finalImage = req.file.path;
-    } else if (data.imageURL) {
-      finalImage = data.imageURL;
+    } else if (req.body.imageURL) {
+      finalImage = req.body.imageURL;
     }
 
     const nuevoProducto = new Product({
@@ -49,8 +53,7 @@ exports.createProduct = async (req, res) => {
 // 2. ACTUALIZAR PRODUCTO
 exports.updateProduct = async (req, res) => {
   try {
-    const data = req.body || {};
-    const { name, description, price, stock, category } = data;
+    const { name, description, price, stock, category } = req.body;
 
     let updateData = {
       name,
