@@ -2,7 +2,6 @@ const cloudinary = require("cloudinary").v2;
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const multer = require("multer");
 
-// Verifica que estos nombres coincidan con tus variables en Render
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -13,8 +12,8 @@ const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
     folder: "emuna_productos",
-    allowed_formats: ["jpg", "png", "jpeg"],
-    // Borra cualquier otra línea que tengas aquí por ahora
+    format: async (req, file) => "jpg", // forzamos formato para evitar errores de extensión
+    public_id: (req, file) => file.fieldname + "-" + Date.now(),
   },
 });
 

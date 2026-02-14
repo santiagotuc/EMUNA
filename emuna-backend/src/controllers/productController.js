@@ -5,21 +5,24 @@ exports.createProduct = async (req, res) => {
   try {
     console.log("--- Petición recibida en Backend ---");
 
+    // Verificación de seguridad si el body llega vacío
     if (!req.body || Object.keys(req.body).length === 0) {
       console.log("⚠️ Advertencia: req.body llegó vacío al controlador");
     }
 
     const { name, description, price, stock, category } = req.body;
 
+    // Validación de nombre (Campo obligatorio)
     if (!name) {
       return res.status(400).json({
         message: "No se recibieron los datos del producto (nombre faltante).",
       });
     }
 
+    // Procesar Imagen: Prioridad Multer (req.file) > imageURL manual > Placeholder
     let finalImage = "https://via.placeholder.com/300";
     if (req.file && req.file.path) {
-      finalImage = req.file.path;
+      finalImage = req.file.path; // URL de Cloudinary
     } else if (req.body.imageURL) {
       finalImage = req.body.imageURL;
     }
@@ -37,9 +40,10 @@ exports.createProduct = async (req, res) => {
     console.log("✅ Producto guardado exitosamente:", productoGuardado.name);
     res.status(201).json(productoGuardado);
   } catch (error) {
-    // --- ESTE ES EL CAMBIO CLAVE ---
-    // Imprimimos el error completo para cazar el fallo de Cloudinary
-    console.error("❌ ERROR DETALLADO:", error);
+    // --- ESTA ES LA PARTE QUE CAMBIAMOS PARA CAZAR EL ERROR ---
+    console.error("❌ ERROR DETALLADO DE CLOUDINARY/SERVER:");
+    // console.dir permite ver el contenido del objeto error completo en el Log de Render
+    console.dir(error, { depth: null });
 
     res.status(500).json({
       message: "Error interno en el servidor",
@@ -47,6 +51,7 @@ exports.createProduct = async (req, res) => {
     });
   }
 };
+
 // 2. ACTUALIZAR PRODUCTO
 exports.updateProduct = async (req, res) => {
   try {
