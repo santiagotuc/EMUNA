@@ -1,79 +1,103 @@
 const Product = require("../models/Product");
 
-// @desc Obtener todos los productos
-// @route GET /api/products
-exports.getProducts = async (req, res) => {
-  try {
-    const products = await Product.find();
-    res.status(200).json(products);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// @desc Crear un nuevo producto (Planta o artesanía)
-// @route POST /api/products
+// 1. CREAR PRODUCTO
 exports.createProduct = async (req, res) => {
   try {
+    // Estos logs son para que vos veas en Render qué está llegando
+    console.log("--- Intentando crear producto ---");
+    console.log("Cuerpo de la petición (req.body):", req.body);
+    console.log("Archivo recibido (req.file):", req.file);
+
     const { name, description, price, stock, category } = req.body;
 
-    // Si se subió un archivo, Multer nos da la URL en req.file.path
+    // Prioridad: Si hay archivo de Cloudinary lo usamos, sino el link de texto
     const imageURL = req.file ? req.file.path : req.body.imageURL;
 
     const nuevoProducto = new Product({
       name,
       description,
-      price,
-      stock,
+      price: Number(price), // Nos aseguramos de que sea número
+      stock: Number(stock), // Nos aseguramos de que sea número
       category,
       imageURL,
     });
 
     await nuevoProducto.save();
+    console.log("✅ Producto guardado con éxito en MongoDB");
     res.status(201).json(nuevoProducto);
   } catch (error) {
-    res.status(500).json({ message: "Error al crear producto", error });
+    console.error("❌ Error en createProduct:", error.message);
+    res.status(500).json({
+      message: "Error al crear producto",
+      error: error.message,
+    });
   }
 };
 
-// @desc Actualizar un producto
-// @route PUT /api/products/:id
+// 2. ACTUALIZAR PRODUCTO
 exports.updateProduct = async (req, res) => {
   try {
-    // CORRECCIÓN: Usamos req.params.id (con 's')
-    const updatedProduct = await Product.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }, // runValidators asegura que siga las reglas del modelo
-    );
+    console.log("--- Intentando actualizar producto ---");
+    const { name, description, price, stock, category } = req.body;
 
-    if (!updatedProduct) {
-      return res
-        .status(404)
-        .json({ message: "Producto no encontrado para actualizar" });
+    let updateData = {
+      name,
+      description,
+      price: Number(price),
+      stock: Number(stock),
+      category,
+    };
+
+    // Si el usuario subió una imagen nueva en la edición
+    if (req.file) {
+      console.log("Nueva imagen detectada para actualizar:", req.file.path);
+      updateData.imageURL = req.file.path;
     }
 
-    res.json(updatedProduct);
+    const productoActualizado = await Product.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true },
+    );
+
+    if (!productoActualizado) {
+      return res.status(404).json({ message: "Producto no encontrado" });
+    }
+
+    console.log("✅ Producto actualizado con éxito");
+    res.json(productoActualizado);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    console.error("❌ Error en updateProduct:", error.message);
+    res.status(500).json({
+      message: "Error al actualizar",
+      error: error.message,
+    });
   }
 };
 
-// @desc Eliminar un producto
-// @route DELETE /api/products/:id
+// 3. OBTENER TODOS LOS PRODUCTOS
+exports.getProducts = async (req, res) => {
+  try {
+    const productos = await Product.find().sort({ createdAt: -1 });
+    res.json(productos);
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener productos" });
+  }
+};
+
+// 4. ELIMINAR PRODUCTO
 exports.deleteProduct = async (req, res) => {
   try {
-    // CORRECCIÓN: Validamos que el producto exista antes de decir que se borró
-    const deletedProduct = await Product.findByIdAndDelete(req.params.id);
+    const { id } = req.params;
+    const eliminado = await Product.findByIdAndDelete(id);
 
-    if (!deletedProduct) {
-      return res
-        .status(404)
-        .json({ message: "Producto no encontrado para eliminar" });
+    if (!eliminado) {
+      return res.status(404).json({ message: "No se encontró el producto" });
     }
 
+    console.log("✅ Producto eliminado ID:", id);
     res.json({ message: "Producto eliminado correctamente" });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: "Error al eliminar" });
   }
 };
