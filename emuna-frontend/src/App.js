@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 
 // --- CONFIGURACIÓN DE URL DINÁMICA ---
-// Esto detecta automáticamente si debe usar el backend local o el de la nube
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
 function App() {
@@ -24,7 +23,8 @@ function App() {
     price: "",
     stock: "",
     category: "Plantas",
-    imageURL: "",
+    imageURL: "", // Se mantiene para compatibilidad o links externos
+    imageFile: null, // Nuevo: para el archivo físico
   });
 
   const [editandoId, setEditandoId] = useState(null);
@@ -33,7 +33,6 @@ function App() {
   useEffect(() => {
     const obtenerDatos = async () => {
       try {
-        // Usamos la variable API_URL
         const response = await fetch(`${API_URL}/api/products`);
         const data = await response.json();
         setProductos(data);
@@ -92,28 +91,47 @@ function App() {
     0,
   );
 
-  // 4. FUNCIONES CRUD (CON TOKEN)
+  // 4. FUNCIONES CRUD (CON TOKEN Y FORMDATA)
   const manejarEnvio = async (e) => {
     e.preventDefault();
+
+    // --- IMPORTANTE: Usamos FormData para subir imágenes ---
+    const formData = new FormData();
+    formData.append("name", nuevoProducto.name);
+    formData.append("description", nuevoProducto.description);
+    formData.append("price", nuevoProducto.price);
+    formData.append("stock", nuevoProducto.stock);
+    formData.append("category", nuevoProducto.category);
+
+    // Si hay un archivo seleccionado, se añade como 'image'
+    if (nuevoProducto.imageFile) {
+      formData.append("image", nuevoProducto.imageFile);
+    } else {
+      formData.append("imageURL", nuevoProducto.imageURL);
+    }
+
     try {
       const url = editandoId
         ? `${API_URL}/api/products/${editandoId}`
         : `${API_URL}/api/products`;
+
       const response = await fetch(url, {
         method: editandoId ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json", "x-auth-token": token },
-        body: JSON.stringify({
-          ...nuevoProducto,
-          price: Number(nuevoProducto.price),
-          stock: Number(nuevoProducto.stock),
-        }),
+        headers: {
+          "x-auth-token": token,
+          // NOTA: Aquí NO se pone "Content-Type", el navegador lo pone solo al ver que es FormData
+        },
+        body: formData,
       });
+
       const data = await response.json();
       if (response.ok) {
         if (editandoId)
           setProductos(productos.map((p) => (p._id === editandoId ? data : p)));
         else setProductos([...productos, data]);
         cerrarModal();
+      } else {
+        alert("Error al guardar: " + data.message);
       }
     } catch (error) {
       console.error(error);
@@ -144,11 +162,12 @@ function App() {
       stock: "",
       category: "Plantas",
       imageURL: "",
+      imageFile: null,
     });
   };
 
   const prepararEdicion = (producto) => {
-    setNuevoProducto({ ...producto });
+    setNuevoProducto({ ...producto, imageFile: null });
     setEditandoId(producto._id);
     setMostrarModal(true);
   };
@@ -219,7 +238,7 @@ function App() {
           </div>
         )}
 
-        {/* BÚSQUEDA Y FILTROS (PÚBLICO) */}
+        {/* BÚSQUEDA Y FILTROS */}
         <div className="flex flex-col items-center mb-8 gap-4">
           <div className="flex gap-4">
             {["Todos", "Plantas", "Artesanías"].map((cat) => (
@@ -273,7 +292,6 @@ function App() {
                     <span className="text-3xl font-black text-emerald-600">
                       ${producto.price}
                     </span>
-                    {/* STOCK SOLO PARA ADMIN */}
                     {token && (
                       <span className="text-xs font-bold text-gray-400">
                         Stock: {producto.stock}
@@ -315,7 +333,7 @@ function App() {
                 type="text"
                 placeholder="Usuario"
                 required
-                className="w-full p-3 border rounded-xl"
+                className="w-full p-3 border rounded-xl outline-none"
                 value={credenciales.username}
                 onChange={(e) =>
                   setCredenciales({ ...credenciales, username: e.target.value })
@@ -325,7 +343,7 @@ function App() {
                 type="password"
                 placeholder="Contraseña"
                 required
-                className="w-full p-3 border rounded-xl"
+                className="w-full p-3 border rounded-xl outline-none"
                 value={credenciales.password}
                 onChange={(e) =>
                   setCredenciales({ ...credenciales, password: e.target.value })
@@ -351,7 +369,7 @@ function App() {
         </div>
       )}
 
-      {/* MODAL INVENTARIO (PROTEGIDO) */}
+      {/* MODAL INVENTARIO (CON BOTÓN DE SUBIDA DE IMAGEN) */}
       {mostrarModal && token && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
@@ -363,7 +381,7 @@ function App() {
                 type="text"
                 placeholder="Nombre"
                 required
-                className="w-full p-3 border rounded-xl"
+                className="w-full p-3 border rounded-xl outline-none"
                 value={nuevoProducto.name}
                 onChange={(e) =>
                   setNuevoProducto({ ...nuevoProducto, name: e.target.value })
@@ -372,7 +390,7 @@ function App() {
               <textarea
                 placeholder="Descripción"
                 required
-                className="w-full p-3 border rounded-xl"
+                className="w-full p-3 border rounded-xl outline-none"
                 value={nuevoProducto.description}
                 onChange={(e) =>
                   setNuevoProducto({
@@ -381,24 +399,31 @@ function App() {
                   })
                 }
               />
-              <input
-                type="text"
-                placeholder="URL Imagen"
-                className="w-full p-3 border rounded-xl"
-                value={nuevoProducto.imageURL}
-                onChange={(e) =>
-                  setNuevoProducto({
-                    ...nuevoProducto,
-                    imageURL: e.target.value,
-                  })
-                }
-              />
+
+              {/* --- NUEVO INPUT DE ARCHIVO --- */}
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-emerald-700 ml-1">
+                  Imagen del Producto
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="w-full p-2 border rounded-xl text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+                  onChange={(e) =>
+                    setNuevoProducto({
+                      ...nuevoProducto,
+                      imageFile: e.target.files[0],
+                    })
+                  }
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <input
                   type="number"
                   placeholder="Precio"
                   required
-                  className="p-3 border rounded-xl"
+                  className="p-3 border rounded-xl outline-none"
                   value={nuevoProducto.price}
                   onChange={(e) =>
                     setNuevoProducto({
@@ -411,7 +436,7 @@ function App() {
                   type="number"
                   placeholder="Stock"
                   required
-                  className="p-3 border rounded-xl"
+                  className="p-3 border rounded-xl outline-none"
                   value={nuevoProducto.stock}
                   onChange={(e) =>
                     setNuevoProducto({
@@ -422,7 +447,7 @@ function App() {
                 />
               </div>
               <select
-                className="w-full p-3 border rounded-xl"
+                className="w-full p-3 border rounded-xl outline-none"
                 value={nuevoProducto.category}
                 onChange={(e) =>
                   setNuevoProducto({

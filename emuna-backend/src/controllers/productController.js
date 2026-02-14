@@ -14,22 +14,25 @@ exports.getProducts = async (req, res) => {
 // @desc Crear un nuevo producto (Planta o artesanía)
 // @route POST /api/products
 exports.createProduct = async (req, res) => {
-  const { name, description, price, category, stock, imageURL } = req.body;
-
   try {
-    const newProduct = new Product({
+    const { name, description, price, stock, category } = req.body;
+
+    // Si se subió un archivo, Multer nos da la URL en req.file.path
+    const imageURL = req.file ? req.file.path : req.body.imageURL;
+
+    const nuevoProducto = new Product({
       name,
       description,
       price,
-      category,
       stock,
+      category,
       imageURL,
     });
 
-    const savedProduct = await newProduct.save();
-    res.status(201).json(savedProduct);
+    await nuevoProducto.save();
+    res.status(201).json(nuevoProducto);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(500).json({ message: "Error al crear producto", error });
   }
 };
 
