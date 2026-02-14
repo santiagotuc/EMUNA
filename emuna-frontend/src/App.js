@@ -29,7 +29,7 @@ function App() {
       try {
         const response = await fetch(`${API_URL}/api/products`);
         const data = await response.json();
-        setProductos(data);
+        setProductos(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("Error buscando productos:", error);
       }
@@ -66,61 +66,6 @@ function App() {
     alert("Sesión cerrada.");
   };
 
-  const manejarEnvio = async (e) => {
-    e.preventDefault();
-    const formData = new FormData();
-    formData.append("name", nuevoProducto.name);
-    formData.append("description", nuevoProducto.description);
-    formData.append("price", nuevoProducto.price);
-    formData.append("stock", nuevoProducto.stock);
-    formData.append("category", nuevoProducto.category);
-
-    // IMPORTANTE: 'image' debe coincidir con uploadCloud.single("image") del backend
-    if (nuevoProducto.imageFile) {
-      formData.append("image", nuevoProducto.imageFile);
-    } else {
-      formData.append("imageURL", nuevoProducto.imageURL);
-    }
-
-    try {
-      const url = editandoId
-        ? `${API_URL}/api/products/${editandoId}`
-        : `${API_URL}/api/products`;
-      const response = await fetch(url, {
-        method: editandoId ? "PUT" : "POST",
-        headers: { "x-auth-token": token }, // NUNCA poner Content-Type aquí con FormData
-        body: formData,
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        if (editandoId)
-          setProductos(productos.map((p) => (p._id === editandoId ? data : p)));
-        else setProductos([...productos, data]);
-        cerrarModal();
-      } else {
-        alert("Error del servidor: " + (data.message || "No se pudo guardar"));
-      }
-    } catch (error) {
-      console.error("Error en la petición:", error);
-      alert("Error de conexión con el servidor");
-    }
-  };
-
-  const eliminarProducto = async (id) => {
-    if (window.confirm("¿Estás seguro?")) {
-      try {
-        const response = await fetch(`${API_URL}/api/products/${id}`, {
-          method: "DELETE",
-          headers: { "x-auth-token": token },
-        });
-        if (response.ok) setProductos(productos.filter((p) => p._id !== id));
-      } catch (error) {
-        console.error(error);
-      }
-    }
-  };
-
   const cerrarModal = () => {
     setMostrarModal(false);
     setEditandoId(null);
@@ -135,26 +80,62 @@ function App() {
     });
   };
 
-  const prepararEdicion = (producto) => {
-    setNuevoProducto({ ...producto, imageFile: null });
-    setEditandoId(producto._id);
-    setMostrarModal(true);
+  const manejarEnvio = async (e) => {
+    e.preventDefault();
+
+    // Verificación rápida antes de enviar
+    if (!nuevoProducto.name || !nuevoProducto.price) {
+      alert("Por favor, completa los campos obligatorios.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("name", nuevoProducto.name);
+    formData.append("description", nuevoProducto.description);
+    formData.append("price", nuevoProducto.price);
+    formData.append("stock", nuevoProducto.stock);
+    formData.append("category", nuevoProducto.category);
+
+    if (nuevoProducto.imageFile) {
+      formData.append("image", nuevoProducto.imageFile);
+    } else {
+      formData.append("imageURL", nuevoProducto.imageURL);
+    }
+
+    try {
+      const url = editandoId
+        ? `${API_URL}/api/products/${editandoId}`
+        : `${API_URL}/api/products`;
+      const response = await fetch(url, {
+        method: editandoId ? "PUT" : "POST",
+        headers: { "x-auth-token": token },
+        body: formData, // El navegador pone el Content-Type automáticamente
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        if (editandoId) {
+          setProductos(productos.map((p) => (p._id === editandoId ? data : p)));
+        } else {
+          setProductos([data, ...productos]);
+        }
+        alert("¡Guardado correctamente! ✨");
+        cerrarModal();
+      } else {
+        alert("Error: " + data.message);
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Error al conectar con el servidor.");
+    }
   };
 
-  // El resto del return (HTML) se mantiene igual que tu código original
-  // Solo asegúrate de copiar esta parte del input de archivo en tu modal:
-  /* <input
-      type="file"
-      accept="image/*"
-      onChange={(e) => setNuevoProducto({ ...nuevoProducto, imageFile: e.target.files[0] })}
-    />
-  */
-
   return (
-    <div className="min-h-screen bg-emerald-50 p-10 font-sans">
+    <div className="min-h-screen bg-emerald-50 p-4 md:p-10 font-sans">
       <div className="max-w-6xl mx-auto">
-        <header className="flex justify-between items-center mb-10">
-          <div>
+        <header className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
+          <div className="text-center md:text-left">
             <h1 className="text-4xl font-extrabold text-emerald-900">
               🌿 EMUNA
             </h1>
@@ -180,7 +161,7 @@ function App() {
                   onClick={cerrarSesion}
                   className="bg-red-100 text-red-600 px-6 py-2 rounded-full font-bold hover:bg-red-200 transition"
                 >
-                  Cerrar Sesión
+                  Salir
                 </button>
               </>
             )}
@@ -189,38 +170,43 @@ function App() {
 
         {token && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div className="bg-white p-6 rounded-3xl shadow-sm border border-emerald-100 flex flex-col items-center">
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-emerald-100 text-center">
               <span className="text-emerald-500 text-sm font-bold uppercase">
                 Total Productos
               </span>
-              <span className="text-4xl font-black text-emerald-900">
-                {totalProductos}
+              <p className="text-4xl font-black text-emerald-900">
+                {productos.length}
+              </p>
+            </div>
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-emerald-100 text-center">
+              <span className="text-emerald-500 text-sm font-bold uppercase">
+                Stock Crítico
               </span>
+              <p className="text-4xl font-black text-orange-600">
+                {productos.filter((p) => p.stock < 5).length}
+              </p>
             </div>
-            <div
-              className={`p-6 rounded-3xl shadow-sm border flex flex-col items-center ${stockCritico > 0 ? "bg-orange-50 border-orange-200" : "bg-white border-emerald-100"}`}
-            >
-              <span className="text-sm font-bold uppercase">Stock Crítico</span>
-              <span className="text-4xl font-black">{stockCritico}</span>
-            </div>
-            <div className="bg-emerald-600 p-6 rounded-3xl shadow-lg flex flex-col items-center text-white">
+            <div className="bg-emerald-600 p-6 rounded-3xl shadow-lg text-center text-white">
               <span className="text-emerald-100 text-sm font-bold uppercase">
                 Valor Inventario
               </span>
-              <span className="text-4xl font-black">
-                ${valorInventario.toLocaleString()}
-              </span>
+              <p className="text-4xl font-black">
+                $
+                {productos
+                  .reduce((acc, p) => acc + p.price * p.stock, 0)
+                  .toLocaleString()}
+              </p>
             </div>
           </div>
         )}
 
         <div className="flex flex-col items-center mb-8 gap-4">
-          <div className="flex gap-4">
+          <div className="flex gap-2">
             {["Todos", "Plantas", "Artesanías"].map((cat) => (
               <button
                 key={cat}
                 onClick={() => setFiltroCategoria(cat)}
-                className={`px-6 py-2 rounded-full font-bold transition ${filtroCategoria === cat ? "bg-emerald-600 text-white shadow-md" : "bg-white text-emerald-700 hover:bg-emerald-50"}`}
+                className={`px-4 py-2 rounded-full font-bold transition ${filtroCategoria === cat ? "bg-emerald-600 text-white shadow-md" : "bg-white text-emerald-700 hover:bg-emerald-50"}`}
               >
                 {cat}
               </button>
@@ -229,7 +215,7 @@ function App() {
           <input
             type="text"
             placeholder="Buscar producto..."
-            className="w-full max-w-md p-3 rounded-2xl border-2 border-emerald-100 outline-none focus:border-emerald-500 shadow-sm"
+            className="w-full max-w-md p-3 rounded-2xl border-2 border-emerald-100 outline-none focus:border-emerald-500"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
           />
@@ -248,7 +234,7 @@ function App() {
                 key={producto._id}
                 className="bg-white rounded-3xl shadow-xl overflow-hidden flex flex-col border border-emerald-50"
               >
-                <div className="h-48 bg-emerald-200 flex items-center justify-center overflow-hidden">
+                <div className="h-48 bg-emerald-100 flex items-center justify-center overflow-hidden">
                   {producto.imageURL ? (
                     <img
                       src={producto.imageURL}
@@ -265,7 +251,7 @@ function App() {
                   <h2 className="text-2xl font-bold text-gray-800 capitalize">
                     {producto.name}
                   </h2>
-                  <p className="text-gray-500 text-sm mb-4">
+                  <p className="text-gray-500 text-sm mb-4 line-clamp-2">
                     {producto.description}
                   </p>
                   <div className="flex justify-between items-center pt-4 border-t border-gray-100">
@@ -282,14 +268,31 @@ function App() {
                     {token && (
                       <div className="flex gap-2">
                         <button
-                          onClick={() => prepararEdicion(producto)}
-                          className="p-3 bg-blue-50 text-blue-500 rounded-full hover:bg-blue-100 transition"
+                          onClick={() => {
+                            setNuevoProducto({ ...producto, imageFile: null });
+                            setEditandoId(producto._id);
+                            setMostrarModal(true);
+                          }}
+                          className="p-3 bg-blue-50 text-blue-500 rounded-full"
                         >
                           ✏️
                         </button>
                         <button
-                          onClick={() => eliminarProducto(producto._id)}
-                          className="p-3 bg-red-50 text-red-500 rounded-full hover:bg-red-100 transition"
+                          onClick={async () => {
+                            if (window.confirm("¿Eliminar?")) {
+                              await fetch(
+                                `${API_URL}/api/products/${producto._id}`,
+                                {
+                                  method: "DELETE",
+                                  headers: { "x-auth-token": token },
+                                },
+                              );
+                              setProductos(
+                                productos.filter((p) => p._id !== producto._id),
+                              );
+                            }
+                          }}
+                          className="p-3 bg-red-50 text-red-500 rounded-full"
                         >
                           🗑️
                         </button>
@@ -304,154 +307,146 @@ function App() {
 
       {mostrarLogin && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
-          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
-            <h2 className="text-2xl font-bold text-emerald-900 mb-6 text-center">
-              Acceso Administrador
+          <form
+            onSubmit={manejarLogin}
+            className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl space-y-4"
+          >
+            <h2 className="text-2xl font-bold text-emerald-900 text-center">
+              Admin EMUNA
             </h2>
-            <form onSubmit={manejarLogin} className="space-y-4">
-              <input
-                type="text"
-                placeholder="Usuario"
-                required
-                className="w-full p-3 border rounded-xl outline-none"
-                value={credenciales.username}
-                onChange={(e) =>
-                  setCredenciales({ ...credenciales, username: e.target.value })
-                }
-              />
-              <input
-                type="password"
-                placeholder="Contraseña"
-                required
-                className="w-full p-3 border rounded-xl outline-none"
-                value={credenciales.password}
-                onChange={(e) =>
-                  setCredenciales({ ...credenciales, password: e.target.value })
-                }
-              />
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setMostrarLogin(false)}
-                  className="flex-1 py-3 text-gray-500 font-semibold"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-3 bg-emerald-600 text-white font-bold rounded-xl"
-                >
-                  Entrar
-                </button>
-              </div>
-            </form>
-          </div>
+            <input
+              type="text"
+              placeholder="Usuario"
+              required
+              className="w-full p-3 border rounded-xl outline-none"
+              onChange={(e) =>
+                setCredenciales({ ...credenciales, username: e.target.value })
+              }
+            />
+            <input
+              type="password"
+              placeholder="Contraseña"
+              required
+              className="w-full p-3 border rounded-xl outline-none"
+              onChange={(e) =>
+                setCredenciales({ ...credenciales, password: e.target.value })
+              }
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setMostrarLogin(false)}
+                className="flex-1 py-3 text-gray-500 font-semibold"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="flex-1 py-3 bg-emerald-600 text-white font-bold rounded-xl"
+              >
+                Entrar
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
       {mostrarModal && token && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
-            <h2 className="text-2xl font-bold text-emerald-900 mb-6">
-              {editandoId ? "Editar Producto" : "Añadir a Inventario"}
+          <form
+            onSubmit={manejarEnvio}
+            className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+          >
+            <h2 className="text-2xl font-bold text-emerald-900">
+              {editandoId ? "Editar" : "Nuevo Producto"}
             </h2>
-            <form onSubmit={manejarEnvio} className="space-y-4">
+            <input
+              type="text"
+              placeholder="Nombre"
+              required
+              className="w-full p-3 border rounded-xl outline-none"
+              value={nuevoProducto.name}
+              onChange={(e) =>
+                setNuevoProducto({ ...nuevoProducto, name: e.target.value })
+              }
+            />
+            <textarea
+              placeholder="Descripción"
+              className="w-full p-3 border rounded-xl outline-none"
+              value={nuevoProducto.description}
+              onChange={(e) =>
+                setNuevoProducto({
+                  ...nuevoProducto,
+                  description: e.target.value,
+                })
+              }
+            />
+
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-bold text-emerald-700 ml-1">
+                Subir Imagen
+              </label>
               <input
-                type="text"
-                placeholder="Nombre"
-                required
-                className="w-full p-3 border rounded-xl outline-none"
-                value={nuevoProducto.name}
-                onChange={(e) =>
-                  setNuevoProducto({ ...nuevoProducto, name: e.target.value })
-                }
-              />
-              <textarea
-                placeholder="Descripción"
-                required
-                className="w-full p-3 border rounded-xl outline-none"
-                value={nuevoProducto.description}
+                type="file"
+                accept="image/*"
+                className="w-full p-2 border rounded-xl text-sm file:bg-emerald-50 file:border-0 file:rounded-full file:text-emerald-700"
                 onChange={(e) =>
                   setNuevoProducto({
                     ...nuevoProducto,
-                    description: e.target.value,
+                    imageFile: e.target.files[0],
                   })
                 }
               />
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-bold text-emerald-700 ml-1">
-                  Imagen del Producto
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="w-full p-2 border rounded-xl text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
-                  onChange={(e) =>
-                    setNuevoProducto({
-                      ...nuevoProducto,
-                      imageFile: e.target.files[0],
-                    })
-                  }
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <input
-                  type="number"
-                  placeholder="Precio"
-                  required
-                  className="p-3 border rounded-xl outline-none"
-                  value={nuevoProducto.price}
-                  onChange={(e) =>
-                    setNuevoProducto({
-                      ...nuevoProducto,
-                      price: e.target.value,
-                    })
-                  }
-                />
-                <input
-                  type="number"
-                  placeholder="Stock"
-                  required
-                  className="p-3 border rounded-xl outline-none"
-                  value={nuevoProducto.stock}
-                  onChange={(e) =>
-                    setNuevoProducto({
-                      ...nuevoProducto,
-                      stock: e.target.value,
-                    })
-                  }
-                />
-              </div>
-              <select
-                className="w-full p-3 border rounded-xl outline-none"
-                value={nuevoProducto.category}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <input
+                type="number"
+                placeholder="Precio"
+                required
+                className="p-3 border rounded-xl outline-none"
+                value={nuevoProducto.price}
                 onChange={(e) =>
-                  setNuevoProducto({
-                    ...nuevoProducto,
-                    category: e.target.value,
-                  })
+                  setNuevoProducto({ ...nuevoProducto, price: e.target.value })
                 }
+              />
+              <input
+                type="number"
+                placeholder="Stock"
+                required
+                className="p-3 border rounded-xl outline-none"
+                value={nuevoProducto.stock}
+                onChange={(e) =>
+                  setNuevoProducto({ ...nuevoProducto, stock: e.target.value })
+                }
+              />
+            </div>
+            <select
+              className="w-full p-3 border rounded-xl outline-none"
+              value={nuevoProducto.category}
+              onChange={(e) =>
+                setNuevoProducto({ ...nuevoProducto, category: e.target.value })
+              }
+            >
+              <option value="Plantas">Plantas</option>
+              <option value="Artesanías">Artesanías</option>
+            </select>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={cerrarModal}
+                className="flex-1 py-3 text-gray-500 font-semibold"
               >
-                <option value="Plantas">Plantas</option>
-                <option value="Artesanías">Artesanías</option>
-              </select>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={cerrarModal}
-                  className="flex-1 py-3 text-gray-500 font-semibold"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-3 bg-emerald-600 text-white font-bold rounded-xl"
-                >
-                  {editandoId ? "Actualizar" : "Guardar"}
-                </button>
-              </div>
-            </form>
-          </div>
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="flex-1 py-3 bg-emerald-600 text-white font-bold rounded-xl"
+              >
+                Guardar
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>
