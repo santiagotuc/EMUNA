@@ -9,26 +9,26 @@ const authRoutes = require("./routes/authRoutes");
 
 const app = express();
 
-// Conectar a MongoDb Atlas
+// 1. Conectar a Base de Datos
 connectDB();
 
-// Middlewares
-app.use(helmet({ contentSecurityPolicy: false })); // Ajuste para que se vean las fotos de Cloudinary
+// 2. Middlewares de Configuración (Deben ir antes de las rutas)
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(morgan("dev"));
-app.use(express.json());
 
-// --- ESTA LÍNEA ES LA QUE FALTABA ---
-// Permite que el servidor entienda los datos del formulario (FormData)
+// IMPORTANTE: Estos procesan los datos del formulario
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Rutas
+// 3. Rutas
 app.get("/", (req, res) => {
-  res.json("🌿API DE EMUNA Funcionando correctamente");
+  res.json("🌿 API DE EMUNA Funcionando correctamente");
 });
 
 app.use("/api/products", productRoutes);
 app.use("/api/auth", authRoutes);
 
+// 4. Encender Servidor
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Servidor en puerto ${PORT}`));
