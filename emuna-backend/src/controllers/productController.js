@@ -3,27 +3,30 @@ const Product = require("../models/Product");
 // 1. CREAR PRODUCTO
 exports.createProduct = async (req, res) => {
   try {
-    console.log("--- Petición recibida en Backend ---");
+    console.log("--- Petición recibida en Backend (Create) ---");
 
-    // Verificación de seguridad si el body llega vacío
+    // 1. Verificación de seguridad si el body llega vacío
     if (!req.body || Object.keys(req.body).length === 0) {
       console.log("⚠️ Advertencia: req.body llegó vacío al controlador");
     }
 
     const { name, description, price, stock, category } = req.body;
 
-    // Validación de nombre (Campo obligatorio)
+    // 2. Validación de nombre (Campo obligatorio)
     if (!name) {
       return res.status(400).json({
         message: "No se recibieron los datos del producto (nombre faltante).",
       });
     }
 
-    // Procesar Imagen: Prioridad Multer (req.file) > imageURL manual > Placeholder
+    // 3. Procesar Imagen: Prioridad Multer (req.file) > imageURL manual > Placeholder
     let finalImage = "https://via.placeholder.com/300";
+
     if (req.file && req.file.path) {
-      finalImage = req.file.path; // URL de Cloudinary
+      console.log("📸 Imagen recibida por Multer/Cloudinary:", req.file.path);
+      finalImage = req.file.path;
     } else if (req.body.imageURL) {
+      console.log("🔗 URL de imagen manual recibida:", req.body.imageURL);
       finalImage = req.body.imageURL;
     }
 
@@ -40,14 +43,24 @@ exports.createProduct = async (req, res) => {
     console.log("✅ Producto guardado exitosamente:", productoGuardado.name);
     res.status(201).json(productoGuardado);
   } catch (error) {
-    // --- ESTA ES LA PARTE QUE CAMBIAMOS PARA CAZAR EL ERROR ---
-    console.error("❌ ERROR DETALLADO DE CLOUDINARY/SERVER:");
-    // console.dir permite ver el contenido del objeto error completo en el Log de Render
-    console.dir(error, { depth: null });
+    console.error("❌ ERROR AL CREAR PRODUCTO:");
+
+    // A) Error específico: Archivo muy pesado (Multer)
+    if (error.code === "LIMIT_FILE_SIZE") {
+      console.error("⚠️ El archivo excede el límite de peso permitido.");
+      return res.status(400).json({
+        message:
+          "La imagen es demasiado pesada. Por favor sube una imagen de menos de 5MB.",
+      });
+    }
+
+    // B) Error de Cloudinary u otros (desglosamos el objeto para leerlo en logs)
+    // Esto convierte el [object Object] en texto legible
+    console.error(JSON.stringify(error, null, 2));
 
     res.status(500).json({
-      message: "Error interno en el servidor",
-      error: error.message,
+      message: "Error interno al procesar la solicitud",
+      error: error.message || error, // Enviamos el detalle si existe
     });
   }
 };
@@ -65,6 +78,7 @@ exports.updateProduct = async (req, res) => {
       category,
     };
 
+    // Si hay nueva foto, actualizamos la URL
     if (req.file && req.file.path) {
       updateData.imageURL = req.file.path;
     }
@@ -72,7 +86,7 @@ exports.updateProduct = async (req, res) => {
     const productoActualizado = await Product.findByIdAndUpdate(
       req.params.id,
       updateData,
-      { new: true },
+      { new: true }, // Devuelve el producto ya modificado
     );
 
     if (!productoActualizado) {
@@ -81,7 +95,15 @@ exports.updateProduct = async (req, res) => {
 
     res.json(productoActualizado);
   } catch (error) {
-    console.error("❌ Error al actualizar:", error.message);
+    console.error("❌ ERROR AL ACTUALIZAR:");
+
+    if (error.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({
+        message: "La imagen es demasiado pesada. Máximo 5MB.",
+      });
+    }
+
+    console.error(JSON.stringify(error, null, 2));
     res
       .status(500)
       .json({ message: "Error al actualizar", error: error.message });
