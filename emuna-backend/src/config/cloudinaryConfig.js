@@ -13,10 +13,11 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: "emuna_productos", // Carpeta en Cloudinary
-    allowed_formats: ["jpg", "png", "jpeg", "webp"], // Solo imágenes permitidas
-    // TRANSFORMACIÓN AUTOMÁTICA:
-    // Si la foto es gigante, la bajamos a 1000px de ancho y calidad automática
+    folder: "emuna_productos",
+    // 1. Agregamos 'heic' a los formatos permitidos
+    allowed_formats: ["jpg", "png", "jpeg", "webp", "heic"], 
+    // 2. Forzamos la conversión a jpg para que sea compatible en la web
+    format: "jpg", 
     transformation: [{ width: 1000, crop: "limit", quality: "auto" }],
   },
 });
