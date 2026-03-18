@@ -175,9 +175,6 @@ function App() {
             <h1 className="text-4xl font-extrabold text-emerald-900">
               🌿 EMUNA
             </h1>
-            <p className="text-emerald-700 font-medium">
-              Inventario Profesional
-            </p>
           </div>
 
           <div className="flex gap-2">
